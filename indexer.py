@@ -21,7 +21,8 @@ TO_DASH_TYPE = {
     "ffi": "Function",
     "method": "Method",
     "field": "Field",
-    "variant": "Variant"
+    "variant": "Variant",
+    "enum": "Enum"
 }
 
 
@@ -129,8 +130,9 @@ def process_file(idx, full_path, prefix):
         else:
             ty, name = name.split(".")
             fqn = make_fqn(fqn_prefix, name)
-            add_to_index(idx, fqn, ty, rel_path)
 
+            # Process children before, as it allows to
+            # distinguish between types and enums
             flts = TO_SCRAPE_FILTERS.get(ty, None)
             if flts:
                 def add_child_node(node_info):
@@ -140,8 +142,16 @@ def process_file(idx, full_path, prefix):
                     else:
                         ref = rel_path
                     add_to_index(idx, make_fqn(fqn, name), ty, ref)
-                #print scrape(os.path.join(PREFIX, path), flts)
-                map(add_child_node, scrape(full_path, flts))
+                childs = scrape(full_path, flts)
+                # Type declaration will have no children at all
+                # It's a bit hacky but allows to avoid additional
+                # search for exact type
+                if len(childs) > 0 and ty == "type":
+                    ty = "enum"
+                map(add_child_node, childs)
+
+            # And now we know for sure type
+            add_to_index(idx, fqn, ty, rel_path)
 
 
 def print_usage():
@@ -156,7 +166,6 @@ Example:
 """
 
 IDX_NAME = "docSet.dsidx"
-
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
