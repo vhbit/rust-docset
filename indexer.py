@@ -15,14 +15,15 @@ TO_DASH_TYPE = {
     "structfield": "Field",
     "mod": "Module",
     "type": "Type",
-    "static": "Variable",
+    "static": "Constant",
     "macro": "Macro",
     "primitive": "Type",
     "ffi": "Function",
     "method": "Method",
     "field": "Field",
     "variant": "Variant",
-    "enum": "Enum"
+    "enum": "Enum",
+    "ffs": "Constant"
 }
 
 
@@ -118,9 +119,10 @@ def process_file(idx, full_path, prefix):
     fqn_prefix = ""
 
     if dirname == "":
-        titles = scrape(full_path, [GUIDE_TITLE_FILTER])
-        if len(titles) > 0:
-            add_to_index(idx, titles[0][0], "gd", rel_path)
+        if name not in ["not_found", "complement-bugreport"]:
+            titles = scrape(full_path, [GUIDE_TITLE_FILTER])
+            if len(titles) > 0:
+                add_to_index(idx, titles[0][0], "gd", rel_path)
     elif dirname.startswith("src"):
         pass
     else:
