@@ -65,6 +65,11 @@ def scrape(html_path, flt_list):
     try:
         tree = html.parse(html_path)
 
+        # Avoid exceptions on empty HTMLs
+        if not tree.getroot():
+            if DEBUG:
+                print "Empty html at ", html_path
+            return []
         def apply_filter(flt):
             return map(flt["func"], tree.xpath(flt["xpath"]))
 
