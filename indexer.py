@@ -29,7 +29,8 @@ TO_DASH_TYPE = {
     "field": "Field",
     "variant": "Variant",
     "enum": "Enum",
-    "ffs": "Constant"
+    "ffs": "Constant",
+    "tymethod": "Method"
 }
 
 
@@ -69,7 +70,7 @@ def add_to_index(idx, name, ty, path):
 
 def scrape(tree, flt_list):
     def apply_filter(flt):
-        return map(flt["func"], tree.xpath(flt["xpath"]))
+        return map(flt["fn"], tree.xpath(flt["xpath"]))
 
     return reduce(lambda a, b: a + b, map(apply_filter, flt_list), [])
 
@@ -84,18 +85,17 @@ def node_with_id_noref(node):
     parts = node.attrib["id"].split(".")
     return (parts[1], parts[0], None,)
 
-METHOD_FILTER = {"xpath": '//h4[@class="method"]',
-                 "func": node_with_id_ref}
+METHOD_FILTER = {"xpath": '//*[@class="method"]',
+                 "fn": node_with_id_ref}
 
-VARIANT_FILTER = {"xpath": '//h2[@class="variants"]/following-sibling::table[1]/tr/td[1]',
-                  "func": node_with_id_noref}
+VARIANT_FILTER = {"xpath": '//*[@class="variants"]/following-sibling::table[1]/tr/td[1]',
+                  "fn": node_with_id_noref}
 
-FIELD_FILTER = {"xpath": '//h2[@class="fields"]/following-sibling::table/tr/td[1]',
-                "func": node_with_id_noref}
+FIELD_FILTER = {"xpath": '//*[@class="fields"]/following-sibling::table/tr/td[1]',
+                "fn": node_with_id_noref}
 
-GUIDE_TITLE_FILTER = {
-    "xpath": '//h1[@class="title"]',
-    "func": lambda node: (node.text, None, None,)}
+GUIDE_TITLE_FILTER = {"xpath": '//h1[@class="title"]',
+                      "fn": lambda node: (node.text, None, None,)}
 
 # Trait implementers filter
 #{"type": "trait_impls",
@@ -134,26 +134,63 @@ def placement_child_code(node):
     return node.xpath('./code')[0]
 
 
-TOC_RULES = [
-    {'xpath': '//h4[@class="method"]',
-     'func': toc_node_classifier},
-    {'xpath': '//h2[@class="fields"]/following-sibling::table/tr/td[1]',
-     'func': toc_node_classifier,
-     'placement_func': placement_child_code},
-    {'xpath': '//h2[@class="variants"]/following-sibling::table[1]/tr/td[1]',
-     'func': toc_node_classifier,
-     'placement_func': placement_child_code},
-]
+METHOD_TOC_FILTER = {'xpath': '//*[@class="method"]',
+                     'fn': toc_node_classifier}
+
+FIELDS_TOC_FILTER = {'xpath': '//*[@class="fields"]/following-sibling::table/tr/td[1]',
+                     'fn': toc_node_classifier,
+                     'place_fn': placement_child_code}
+
+VARIANTS_TOC_FILTER = {'xpath': '//*[@class="variants"]/following-sibling::table[1]/tr/td[1]',
+                       'fn': toc_node_classifier,
+                       'place_fn': placement_child_code}
+
+
+def simple_a_class_toc(klass):
+    return { 'xpath': '//a[@class="%s"]' % klass,
+             'fn': lambda node: (node.text, klass,)}
+
+FUNCTIONS_TOC_FILTER = simple_a_class_toc("fn")
+
+IDENT_RE = re.compile(" ([a-zA-Z0-9_]+):")
+def static_from_text(text):
+    m = IDENT_RE.search(text)
+    if m:
+        return m.group(1)
+    return ""
+
+STATIC_TOC_FILTER = {'xpath': '//*[@id="statics"]/following-sibling::table[1]/tr/td/code[1]',
+                      'fn': lambda node: (static_from_text(node.text), "static", )}
+
+MODULES_TOC_FILTER = {'xpath': '//*[@id="modules"]/following-sibling::table[1]/tr/td/a[@class="mod"]',
+                      'fn': lambda node: (node.text, "mod", )}
+
+PRIMITIVE_TOC_FILTER = {'xpath': '//*[@id="primitives"]/following-sibling::table[1]/tr/td/a[@class="primitive"]',
+                      'fn': lambda node: (node.text, "primitive", )}
+
+STRUCT_TOC_FILTER = simple_a_class_toc("struct")
+
+TRAIT_TOC_FILTER = simple_a_class_toc("trait")
+
+TO_TOC_RULES = {
+    "struct": [METHOD_TOC_FILTER, FIELDS_TOC_FILTER],
+    "mod": [FUNCTIONS_TOC_FILTER, STATIC_TOC_FILTER, MODULES_TOC_FILTER, STRUCT_TOC_FILTER, TRAIT_TOC_FILTER, PRIMITIVE_TOC_FILTER],
+    "trait": [METHOD_TOC_FILTER],
+    "enum": [METHOD_TOC_FILTER, VARIANTS_TOC_FILTER],
+    "type": [METHOD_TOC_FILTER, VARIANTS_TOC_FILTER],
+    "primitive": [METHOD_TOC_FILTER]
+}
 
 def gen_toc(tree, ty):
     def closure(dest_path):
-        for rule in TOC_RULES:
+        rules = TO_TOC_RULES.get(ty, [])
+        for rule in rules:
             nodes = tree.xpath(rule["xpath"])
             for node in nodes:
-                (name, ty) = rule["func"](node)
+                (name, child_ty) = rule["fn"](node)
                 toc_node = A(CLASS('dashAnchor'))
-                toc_node.attrib["name"] = "//apple_ref/cpp/%s/%s" % (TO_DASH_TYPE.get(ty, ty), name)
-                place_fn = rule.get('placement_func', None)
+                toc_node.attrib["name"] = "//apple_ref/cpp/%s/%s" % (TO_DASH_TYPE.get(child_ty, child_ty), name)
+                place_fn = rule.get('place_fn', None)
                 if place_fn:
                     place_node = place_fn(node)
                 else:
@@ -175,12 +212,11 @@ def process_html(ctx, full_path):
     fqn_prefix = ""
 
     if dirname == "":
-        if name not in ["not_found", "complement-bugreport"]:
-            tree = html.parse(full_path)
-            titles = scrape(tree, [GUIDE_TITLE_FILTER])
-            if len(titles) > 0:
-                add_to_index(idx, titles[0][0], "gd", rel_path)
-                return cp_file(full_path)
+        tree = html.parse(full_path)
+        titles = scrape(tree, [GUIDE_TITLE_FILTER])
+        if len(titles) > 0:
+            add_to_index(idx, titles[0][0], "gd", rel_path)
+            return cp_file(full_path)
     elif not dirname.startswith("src"):
         tree = html.parse(full_path)
 
@@ -243,6 +279,8 @@ CSS_PATCH = """
 FILE_RULES = [
     [re.compile('main.css'), lambda ctx, fp: patch_file(fp, lambda x: x + CSS_PATCH)],
     [re.compile('.*\\.(epub|tex|pdf)$'), None],
+    [re.compile('not_found\\.html$'), None],
+    [re.compile('complement-bugreport\\.html$'), None],
     [re.compile('.*\\.html$'), lambda ctx, fp: process_html(ctx, fp)],
     [lambda _, fp: cp_file(fp)]
 ]
