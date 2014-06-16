@@ -1,7 +1,13 @@
 #!/usr/bin/env python
 
+from fnmatch import fnmatch
+import logging as log
 from lxml import html
+from lxml.html.builder import A, CLASS
 import os
+from path_helper import DocsetPathHelper
+import re
+import shutil
 import sqlite3
 import sys
 
@@ -55,31 +61,17 @@ def add_to_index(idx, name, ty, path):
     if ty:
         dash_ty = TO_DASH_TYPE.get(ty, None)
         if not dash_ty:
-            sys.stderr.write("Unknown type: %s, path %s" % (ty, path))
+            log.error("Unknown type: %s, path %s", ty, path)
         else:
             (_, cursor) = idx
             cursor.execute("INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, ?, ?);", (name, dash_ty, path,))
 
 
-def scrape(html_path, flt_list):
-    try:
-        tree = html.parse(html_path)
+def scrape(tree, flt_list):
+    def apply_filter(flt):
+        return map(flt["func"], tree.xpath(flt["xpath"]))
 
-        # Avoid exceptions on empty HTMLs
-        if not tree.getroot():
-            if DEBUG:
-                print "Empty html at ", html_path
-            return []
-        def apply_filter(flt):
-            return map(flt["func"], tree.xpath(flt["xpath"]))
-
-        return reduce(lambda a, b: a + b, map(apply_filter, flt_list), [])
-    except Exception as e:
-        if DEBUG:
-            print "Failed to parse: %s, reason: %s" % (html_path, e)
-        else:
-            print "Failed to parse: ", html_path
-        return []
+    return reduce(lambda a, b: a + b, map(apply_filter, flt_list), [])
 
 
 def node_with_id_ref(node):
@@ -117,7 +109,66 @@ TO_SCRAPE_FILTERS = {
 }
 
 
-def process_file(idx, full_path, prefix):
+def cp_file(src_path):
+    def closure(dest_path):
+        shutil.copy2(src_path, dest_path)
+
+    return closure
+
+
+def patch_file(src_path, patch_func):
+    def closure(dest_path):
+        contents = patch_func(open(src_path, 'rt').read())
+        with open(dest_path, 'wt') as f:
+            f.write(contents)
+
+    return closure
+
+
+def toc_node_classifier(node):
+    (name, ty, _) = node_with_id_noref(node)
+    return (name, ty)
+
+
+def placement_child_code(node):
+    return node.xpath('./code')[0]
+
+
+TOC_RULES = [
+    {'xpath': '//h4[@class="method"]',
+     'func': toc_node_classifier},
+    {'xpath': '//h2[@class="fields"]/following-sibling::table/tr/td[1]',
+     'func': toc_node_classifier,
+     'placement_func': placement_child_code},
+    {'xpath': '//h2[@class="variants"]/following-sibling::table[1]/tr/td[1]',
+     'func': toc_node_classifier,
+     'placement_func': placement_child_code},
+]
+
+def gen_toc(tree, ty):
+    def closure(dest_path):
+        for rule in TOC_RULES:
+            nodes = tree.xpath(rule["xpath"])
+            for node in nodes:
+                (name, ty) = rule["func"](node)
+                toc_node = A(CLASS('dashAnchor'))
+                toc_node.attrib["name"] = "//apple_ref/cpp/%s/%s" % (TO_DASH_TYPE.get(ty, ty), name)
+                place_fn = rule.get('placement_func', None)
+                if place_fn:
+                    place_node = place_fn(node)
+                else:
+                    place_node = node
+                place_node.addprevious(toc_node)
+
+        tree.write(dest_path)
+
+    return closure
+
+
+def process_html(ctx, full_path):
+    prefix = ctx['prefix']
+    idx = ctx['idx']
+
     rel_path = os.path.relpath(full_path, prefix)
     name, _ = os.path.splitext(os.path.basename(rel_path))
     dirname = os.path.dirname(rel_path)
@@ -125,40 +176,48 @@ def process_file(idx, full_path, prefix):
 
     if dirname == "":
         if name not in ["not_found", "complement-bugreport"]:
-            titles = scrape(full_path, [GUIDE_TITLE_FILTER])
+            tree = html.parse(full_path)
+            titles = scrape(tree, [GUIDE_TITLE_FILTER])
             if len(titles) > 0:
                 add_to_index(idx, titles[0][0], "gd", rel_path)
-    elif dirname.startswith("src"):
-        pass
-    else:
-        fqn_prefix = dirname.replace(os.sep, "::")
-        if name in ["index", "lib", "mod"]:
-            add_to_index(idx, fqn_prefix, "mod", rel_path)
-        else:
-            ty, name = name.split(".")
-            fqn = make_fqn(fqn_prefix, name)
+                return cp_file(full_path)
+    elif not dirname.startswith("src"):
+        tree = html.parse(full_path)
 
-            # Process children before, as it allows to
-            # distinguish between types and enums
-            flts = TO_SCRAPE_FILTERS.get(ty, None)
-            if flts:
-                def add_child_node(node_info):
-                    (name, ty, ref) = node_info
-                    if ref:
-                        ref = rel_path + "#" + ref
-                    else:
-                        ref = rel_path
-                    add_to_index(idx, make_fqn(fqn, name), ty, ref)
-                childs = scrape(full_path, flts)
-                # Type declaration will have no children at all
-                # It's a bit hacky but allows to avoid additional
-                # search for exact type
-                if len(childs) > 0 and ty == "type":
-                    ty = "enum"
-                map(add_child_node, childs)
+        if tree.getroot():
+            fqn_prefix = dirname.replace(os.sep, "::")
+            if name in ["index", "lib", "mod"]:
+                add_to_index(idx, fqn_prefix, "mod", rel_path)
+                return gen_toc(tree, "mod")
+            else:
+                ty, name = name.split(".")
+                fqn = make_fqn(fqn_prefix, name)
 
-            # And now we know for sure type
-            add_to_index(idx, fqn, ty, rel_path)
+                # Process children before, as it allows to
+                # distinguish between types and enums
+                flts = TO_SCRAPE_FILTERS.get(ty, None)
+                if flts:
+                    def add_child_node(node_info):
+                        (name, ty, ref) = node_info
+                        if ref:
+                            ref = rel_path + "#" + ref
+                        else:
+                            ref = rel_path
+                        add_to_index(idx, make_fqn(fqn, name), ty, ref)
+
+                    childs = scrape(tree, flts)
+                    # Type declaration will have no children at all
+                    # It's a bit hacky but allows to avoid additional
+                    # search for exact type
+                    if len(childs) > 0 and ty == "type":
+                        ty = "enum"
+                    map(add_child_node, childs)
+
+                # And now we know for sure type
+                add_to_index(idx, fqn, ty, rel_path)
+                return gen_toc(tree, ty)
+
+    return None
 
 
 def print_usage():
@@ -172,7 +231,56 @@ Example:
   indexer.py projects/rust/doc out-2014-jul-08
 """
 
-IDX_NAME = "docSet.dsidx"
+DOCSET_NAME = "RustNightly"
+
+CSS_PATCH = """
+/* Dash DocSet overrides */
+
+.sidebar, .sub { display: none; }
+.content { margin-left: 0; }
+"""
+
+FILE_RULES = [
+    [re.compile('main.css'), lambda ctx, fp: patch_file(fp, lambda x: x + CSS_PATCH)],
+    [re.compile('.*\\.(epub|tex|pdf)$'), None],
+    [re.compile('.*\\.html$'), lambda ctx, fp: process_html(ctx, fp)],
+    [lambda _, fp: cp_file(fp)]
+]
+
+
+def matches(path, patterns):
+    if len(patterns) == 0:
+        return True
+    else:
+        for pattern in patterns:
+            if re.search(pattern, path):
+                return True
+
+    return False
+
+
+def rule_for_file(src_path):
+    for rule in FILE_RULES:
+        patterns = rule[:-1]
+        if matches(src_path, patterns):
+            return rule[-1]
+
+    return None
+
+
+def process_file_rules(ctx, src_path, dest_path):
+    fn = rule_for_file(src_path)
+    if fn:
+        dest_fn = fn(ctx, src_path)
+        if dest_fn:
+            dest_dir = os.path.dirname(dest_path)
+
+            if not os.path.exists(dest_dir):
+                log.info("Creating %s", dest_dir)
+                os.makedirs(dest_dir)
+
+            dest_fn(dest_path)
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -181,15 +289,32 @@ if __name__ == "__main__":
         prefix = os.path.abspath(sys.argv[1])
         if len(sys.argv) >= 3:
             out_dir = os.path.abspath(sys.argv[2])
-            if not os.path.exists(out_dir) or not os.path.isdir(out_dir):
-                print "Output directory either doesn't exist or is not directory"
-                sys.exit(1)
-            out_path = os.path.join(out_dir, IDX_NAME)
         else:
-            out_path = os.path.abspath(IDX_NAME)
+            out_dir = os.cwd()
 
-        idx = prepare_index(out_path)
-        for l in sys.stdin:
-            full_path = os.path.abspath(l.strip())
-            process_file(idx, full_path, prefix)
+        if not os.path.exists(out_dir) or not os.path.isdir(out_dir):
+            log.error("Output directory either doesn't exist or is not directory")
+            sys.exit(1)
+
+        docset = DocsetPathHelper(DOCSET_NAME, out_dir)
+        if not os.path.exists(docset.doc_dir):
+            os.makedirs(docset.doc_dir)
+
+        shutil.copy2('Info.plist', docset.content_dir)
+
+        idx = prepare_index(docset.index_path)
+
+        ctx = {
+            'prefix': prefix,
+            'idx': idx
+        }
+
+        for root, dirnames, filenames in os.walk(prefix):
+            for filename in filenames:
+                full_path = os.path.join(root, filename)
+                rel_path = os.path.relpath(full_path, prefix)
+                dest_path = os.path.join(docset.doc_dir, rel_path)
+
+                process_file_rules(ctx, full_path, dest_path)
+
         flush_index(idx)
