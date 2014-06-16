@@ -7,6 +7,6 @@
 <string>Rust Nightly</string>
 <key>dashIndexFilePath</key><string>index.html</string><key>DocSetPlatformFamily</key>
 <string>rust</string>
-<key>isDashDocset</key><true/><key>isJavaScriptEnabled</key><true/><key>DashDocSetFamily</key><string>dashtoc2</string></dict>
+<key>isDashDocset</key><true/><key>isJavaScriptEnabled</key><true/><key>DashDocSetFamily</key><string>dashtoc</string></dict>
 </plist>
 
