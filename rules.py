@@ -2,38 +2,33 @@ import logging as log
 import os
 import re
 
-def matches(path, patterns):
-    if len(patterns) == 0:
-        return True
-    else:
-        for pattern in patterns:
-            if re.search(pattern, path):
-                return True
 
-    return False
+def matches(ctx, predicates):
+    for fn in predicates:
+        if not fn(ctx):
+            return False
+
+    return True
 
 
-def rule_for_file(rules, src_path):
+def rule_for_file(rules, ctx):
     for rule in rules:
-        patterns = rule[:-1]
-        if matches(src_path, patterns):
+        if matches(ctx, rule[:-1]):
             return rule[-1]
 
     return None
 
 
-def process_file_rules(rules, ctx, src_path, dest_path):
+def process_file_rules(rules, ctx):
     """Rules are checked until first match.
        If there are no patterns - it is a default rule,
        which will be executed anyway"""
-    fn = rule_for_file(rules, src_path)
+    fn = rule_for_file(rules, ctx)
     if fn:
-        dest_fn = fn(ctx, src_path)
-        if dest_fn:
-            dest_dir = os.path.dirname(dest_path)
+        dest_dir = os.path.dirname(ctx['dest_path'])
 
-            if not os.path.exists(dest_dir):
-                log.info("Creating %s", dest_dir)
-                os.makedirs(dest_dir)
+        if not os.path.exists(dest_dir):
+            log.info("Creating %s", dest_dir)
+            os.makedirs(dest_dir)
 
-            dest_fn(dest_path)
+        fn(ctx)

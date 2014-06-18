@@ -63,6 +63,7 @@ TO_TOC_RULES = {
 
 
 def insert_toc_into_tree(tree, ty):
+    modified = False
     rules = TO_TOC_RULES.get(ty, [])
     for rule in rules:
         nodes = tree.xpath(rule["xpath"])
@@ -75,4 +76,7 @@ def insert_toc_into_tree(tree, ty):
                 place_node = place_fn(node)
             else:
                 place_node = node
+            modified = True
             place_node.addprevious(toc_node)
+
+    return modified

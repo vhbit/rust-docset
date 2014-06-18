@@ -5,7 +5,7 @@ from index import Index
 import logging as log
 import os
 from path_helper import DocsetPathHelper
-import re
+from predicate import rel_path
 import rules
 import shutil
 import sys
@@ -22,11 +22,14 @@ CSS_PATCH = """
 """
 
 """Rules are in form:
- [pattern1, pattern2, pattern3, ... , patternn, action]
- action is fn(ctx, full_path_to_source_file) -> fn(dest_path),
- i.e it is a function which takes ctx and path to source file
- and returns a function, which knows how to write to dest_path.
- So it allows to write directly to dest without prior copying.
+ [predicate1, predicate2, predicate3, ... , predicateN, action]
+
+ action is fn(ctx), i.e. it decides how to write file
+ to destination, it might be copy, it might be patching
+ or might be injecting toc
+
+ predicate is fn(ctx) -> bool, i.e. it returns true if current
+ context fits. rel_path wraps corresponding functions
 
  Notes:
  1. Rules are checked until first match
@@ -34,12 +37,15 @@ CSS_PATCH = """
     action, which matches anything
 """
 FILE_RULES = [
-    [re.compile('main.css'), lambda ctx, fp: actions.patch_file(fp, lambda x: x + CSS_PATCH)],
-    [re.compile('.*\\.(epub|tex|pdf)$'), None],
-    [re.compile('not_found\\.html$'), None],
-    [re.compile('complement-bugreport\\.html$'), None],
-    [re.compile('.*\\.html$'), lambda ctx, fp: actions.process_html(ctx, fp)],
-    [lambda _, fp: actions.cp_file(fp)]
+    [rel_path(matches='main.css'), actions.patch_file(lambda text: text + CSS_PATCH)],
+    [rel_path(matches='.*\\.(epub|tex|pdf)$'), None],
+    [rel_path(matches='not_found\\.html$'), None],
+    [rel_path(matches='complement-bugreport\\.html$'), None],
+    [rel_path(startswith="src"), actions.cp_file],
+    [rel_path(dirname=""), rel_path(matches='.*\\.html$'), actions.add_guide],
+    [rel_path(matches=r'(index|mod|lib)\.html$'), actions.add_module],
+    [rel_path(matches='.*\\.html$'), actions.add_decl_html],
+    [actions.cp_file]
 ]
 
 def print_usage():
@@ -76,10 +82,6 @@ if __name__ == "__main__":
 
         idx = Index(docset.index_path)
 
-        ctx = {
-            'prefix': prefix,
-            'idx': idx
-        }
 
         for root, dirnames, filenames in os.walk(prefix):
             for filename in filenames:
@@ -87,6 +89,13 @@ if __name__ == "__main__":
                 rel_path = os.path.relpath(full_path, prefix)
                 dest_path = os.path.join(docset.doc_dir, rel_path)
 
-                rules.process_file_rules(FILE_RULES, ctx, full_path, dest_path)
+                ctx = {
+                    'src_path': full_path,
+                    'dest_path': dest_path,
+                    'rel_path': rel_path,
+                    'idx': idx
+                }
+
+                rules.process_file_rules(FILE_RULES, ctx)
 
         idx.flush()
