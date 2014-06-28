@@ -1,10 +1,3 @@
-def scrape(tree, flt_list):
-    def apply_filter(flt):
-        return map(flt["fn"], tree.xpath(flt["xpath"]))
-
-    return reduce(lambda a, b: a + b, map(apply_filter, flt_list), [])
-
-
 def node_with_id_ref(node):
     id_attrib = node.attrib["id"]
     parts = id_attrib.split(".")
@@ -31,18 +24,16 @@ GUIDE_TITLE_FILTER = {"xpath": '//h1[@class="title"]',
 #{"type": "trait_impls",
 # "xpath": '//h3[@class="impl"]/code/a[@class="struct"]/preceding-sibling::a[1]/text()'}
 
-TO_SCRAPE_FILTERS = {
+BY_TYPE = {
     "struct": [METHOD_FILTER, FIELD_FILTER],
     "trait": [METHOD_FILTER],
     "primitive": [METHOD_FILTER],
     "type": [METHOD_FILTER, VARIANT_FILTER],
 }
 
+def by_type(ty):
+    return BY_TYPE.get(ty, [])
 
-def child_decls(tree, ty):
-    """Returns a list of tuples (name, type, reference,)"""
-    flts = TO_SCRAPE_FILTERS.get(ty, None)
-    if flts:
-        return scrape(tree, flts)
-    else:
-        return []
+
+def guide_titles():
+    return [GUIDE_TITLE_FILTER]
