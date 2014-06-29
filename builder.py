@@ -18,7 +18,7 @@ def build_docset(settings, src_dir, out_dir):
     if os.path.exists(settings.TEMPLATE_ICON):
         shutil.copy2(settings.TEMPLATE_ICON, root_dir)
 
-    idx = Index(index_path, settings.TYPE_MAP_FN)
+    idx = Index(index_path)
 
     for root, dirnames, filenames in os.walk(src_dir):
         for filename in filenames:

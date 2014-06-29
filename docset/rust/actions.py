@@ -25,13 +25,13 @@ def add_guide(ctx, tree):
     titles = scrape(tree, index_rules.guide_titles())
     if len(titles) > 0:
         ctx['idx'].add(guide_title(titles[0][0]),
-                       "gd", ctx['rel_path'])
+                       "gd", ctx['rel_path'], to_dash_type)
 
 
 @cached_html
 def add_module(ctx, tree):
     fqn_prefix = os.path.dirname(ctx['rel_path']).replace(os.sep, "::")
-    ctx['idx'].add(fqn_prefix, "mod", ctx['rel_path'])
+    ctx['idx'].add(fqn_prefix, "mod", ctx['rel_path'], to_dash_type)
     update_toc(ctx, tree, toc_rules.by_type("mod"), lambda x: to_dash_type(x, x))
 
 
@@ -58,11 +58,11 @@ def add_decl_html(ctx, tree):
         ty = "enum"
 
     # And now we know for sure type
-    idx.add(fqn, ty, rel_path)
+    idx.add(fqn, ty, rel_path, to_dash_type)
 
     for decl_info in childs:
         (child_name, child_ty, ref) = decl_info
         idx.add(make_fqn(fqn, child_name), child_ty,
-                path_with_ref(rel_path, ref))
+                path_with_ref(rel_path, ref), to_dash_type)
 
     update_toc(ctx, tree, toc_rules.by_type(ty), lambda x: to_dash_type(x, x))
