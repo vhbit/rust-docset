@@ -1,0 +1,6 @@
+[docset]
+name = "Rust Nightly"
+plist = "template/Info.plist"
+icon = "template/icon.png"
+type = "docset.rust:nightly"
+out_dir = "nightly_out"
