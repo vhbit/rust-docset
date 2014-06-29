@@ -1,7 +1,6 @@
-from dash import to_dash_type
 from lxml.html.builder import A, CLASS
 
-def inject_toc(tree, rules):
+def inject_toc(tree, rules, ty_map_fn = None):
     modified = False
 
     for rule in rules:
@@ -9,7 +8,13 @@ def inject_toc(tree, rules):
         for node in nodes:
             (name, child_ty) = rule["fn"](node)
             toc_node = A(CLASS('dashAnchor'))
-            toc_node.attrib["name"] = "//apple_ref/cpp/%s/%s" % (to_dash_type(child_ty, child_ty), name)
+
+            if ty_map_fn:
+                ty = ty_map_fn(child_ty)
+            else:
+                ty = child_ty
+
+            toc_node.attrib["name"] = "//apple_ref/cpp/%s/%s" % (ty, name)
             place_fn = rule.get('place_fn', None)
             if place_fn:
                 place_node = place_fn(node)

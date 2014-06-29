@@ -4,6 +4,7 @@ from rust_doc import guide_title
 import index_rules
 import os
 import toc_rules
+from types import to_dash_type
 
 
 # Creates a full qualified name based on prefix and name
@@ -31,7 +32,7 @@ def add_guide(ctx, tree):
 def add_module(ctx, tree):
     fqn_prefix = os.path.dirname(ctx['rel_path']).replace(os.sep, "::")
     ctx['idx'].add(fqn_prefix, "mod", ctx['rel_path'])
-    update_toc(ctx, tree, toc_rules.by_type("mod"))
+    update_toc(ctx, tree, toc_rules.by_type("mod"), lambda x: to_dash_type(x, x))
 
 
 @cached_html
@@ -64,4 +65,4 @@ def add_decl_html(ctx, tree):
         idx.add(make_fqn(fqn, child_name), child_ty,
                 path_with_ref(rel_path, ref))
 
-    update_toc(ctx, tree, toc_rules.by_type(ty))
+    update_toc(ctx, tree, toc_rules.by_type(ty), lambda x: to_dash_type(x, x))

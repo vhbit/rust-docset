@@ -1,5 +1,6 @@
-from docset import actions
-from docset import rust
+from actions import add_guide, add_module, add_decl_html
+from docset.actions import cp_file, patch_file
+
 from docset.predicate import rel_path
 
 CSS_PATCH = """
@@ -27,24 +28,24 @@ CSS_PATCH = """
 
 """Rules for building docs for Rust itself"""
 RUST_STD_RULES = [
-    [rel_path(matches='main.css'), actions.patch_file(lambda text: text + CSS_PATCH)],
+    [rel_path(matches='main.css'), patch_file(lambda text: text + CSS_PATCH)],
     [rel_path(matches='.*\\.(epub|tex|pdf)$'), None],
     [rel_path(matches='not_found\\.html$'), None],
     [rel_path(matches='complement-bugreport\\.html$'), None],
-    [rel_path(startswith="src"), actions.cp_file],
-    [rel_path(dirname=""), rel_path(matches='.*\\.html$'), rust.add_guide],
-    [rel_path(matches=r'(index|mod|lib)\.html$'), rust.add_module],
-    [rel_path(matches='.*\\.html$'), rust.add_decl_html],
-    [actions.cp_file]
+    [rel_path(startswith="src"), cp_file],
+    [rel_path(dirname=""), rel_path(matches='.*\\.html$'), add_guide],
+    [rel_path(matches=r'(index|mod|lib)\.html$'), add_module],
+    [rel_path(matches='.*\\.html$'), add_decl_html],
+    [cp_file]
 ]
 
 """Rules which should work for any Rust package"""
 RUST_RULES = [
-    [rel_path(matches='main.css'), actions.patch_file(lambda text: text + CSS_PATCH)],
+    [rel_path(matches='main.css'), patch_file(lambda text: text + CSS_PATCH)],
     [rel_path(matches='.*\\.(epub|tex|pdf)$'), None],
-    [rel_path(startswith="src"), actions.cp_file],
-    [rel_path(dirname=""), rel_path(matches='.*\\.html$'), rust.add_guide],
-    [rel_path(matches=r'(index|mod|lib)\.html$'), rust.add_module],
-    [rel_path(matches='.*\\.html$'), rust.add_decl_html],
-    [actions.cp_file]
+    [rel_path(startswith="src"), cp_file],
+    [rel_path(dirname=""), rel_path(matches='.*\\.html$'), add_guide],
+    [rel_path(matches=r'(index|mod|lib)\.html$'), add_module],
+    [rel_path(matches='.*\\.html$'), add_decl_html],
+    [cp_file]
 ]

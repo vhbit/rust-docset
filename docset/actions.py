@@ -21,9 +21,9 @@ def patch_file(patch_func):
     return closure
 
 
-def update_toc(ctx, tree, rules):
+def update_toc(ctx, tree, rules, ty_map_fn = None):
     """Runs TOC rules over tree, updates html_modification flag"""
-    ctx['html_modified'] = ctx['html_modified'] or inject_toc(tree, rules)
+    ctx['html_modified'] = ctx['html_modified'] or inject_toc(tree, rules, ty_map_fn)
 
 
 # FIXME: so far caching isn't actually used fully
