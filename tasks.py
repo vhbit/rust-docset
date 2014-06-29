@@ -69,7 +69,7 @@ def update_nightly(force=False, out_dir="nightly_out"):
                 extract_docs(tar, temp_dir)
 
             print "Building docset"
-            build(doc_dir = temp_dir, out_dir = out_dir, settings = "nightly_settings")
+            build(doc_dir = temp_dir, out_dir = out_dir, conf = "nightly.toml")
 
             with open(TAG_FILE, "w+t") as f:
                 f.write(tag_from_response(r))
@@ -97,9 +97,41 @@ class Mod(object):
     pass
 
 @task
-def build(doc_dir = "", out_dir="doc_out", settings="nightly_settings", conf=None):
+def build(doc_dir = None, out_dir=None, conf="rust_ds.toml"):
     """Builds a docset from doc_dir using settings.
+Command line arguments to doc_dir and out_dir override
+corresponding conf values.
+
 Warning: out dir is cleaned before"""
+    conf = os.path.abspath(conf)
+    with open(conf) as cf:
+        config = toml.loads(cf.read())
+
+    ds = config['docset']
+    mod = Mod()
+    mod.DOCSET_NAME = ds['name']
+    mod.TEMPLATE_PLIST = ensure_abs(ds['plist'], os.path.dirname(conf))
+    mod.TEMPLATE_ICON = ensure_abs(ds['icon'], os.path.dirname(conf))
+
+    if not 'type' in ds:
+        print "Invalid configuration: 'type' is missing"
+        sys.exit(1)
+    else:
+        parts = ds['type'].split(":")
+        if len(parts) == 1:
+            parts.append("default")
+
+        ty_mod = mod_with_name(parts[0], "Failed to import docset type specs: %(name)s")
+        mod.RULES = ty_mod.__getattribute__(parts[1])
+
+    if not doc_dir and 'doc_dir' in ds:
+        doc_dir = ensure_abs(ds['doc_dir'], os.path.dirname(conf))
+
+    if not out_dir and 'out_dir' in ds:
+        out_dir = ensure_abs(ds['out_dir'], os.path.dirname(conf))
+
+    if not doc_dir:
+        doc_dir = "."
 
     doc_dir = os.path.abspath(doc_dir)
     out_dir = os.path.abspath(out_dir)
@@ -112,30 +144,5 @@ Warning: out dir is cleaned before"""
             sys.exit(1)
 
     os.makedirs(out_dir)
-
-    if conf:
-        conf = os.path.abspath(conf)
-        with open(conf) as cf:
-            config = toml.loads(cf.read())
-
-        ds = config['docset']
-        mod = Mod()
-        mod.DOCSET_NAME = ds['name']
-        mod.TEMPLATE_PLIST = ensure_abs(ds['plist'], os.path.dirname(conf))
-        mod.TEMPLATE_ICON = ensure_abs(ds['icon'], os.path.dirname(conf))
-
-        if 'type' in ds:
-            ty_mod = mod_with_name(ds['type'], "Failed to import docset type specs: %(name)s")
-            mod.TYPE_MAP_FN = ty_mod.TYPE_MAP_FN
-            mod.RULES = ty_mod.RULES
-
-        if 'doc_dir' in ds:
-            doc_dir = ensure_abs(ds['doc_dir'], os.path.dirname(conf))
-
-        if 'out_dir' in ds:
-            out_dir = ensure_abs(ds['out_dir'], os.path.dirname(conf))
-
-    else:
-        mod = mod_with_name(ds['type'], "Failed to import settings: %(name)s")
 
     build_docset(mod, doc_dir, out_dir)
