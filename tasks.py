@@ -1,4 +1,7 @@
+from datetime import datetime
 from docset import build_docset
+from docset.rust import templates
+from jinja2 import Template
 from invoke import run, task
 import importlib
 import os
@@ -65,11 +68,12 @@ def update_nightly(force=False, out_dir="nightly_out"):
         try:
             print "Extracting to", temp_dir
             temp_file.seek(0)
-            with tarfile.open(fileobj=temp_file, mode='r:gz', bufsize=1024*1024*10) as tar:
+            with tarfile.open(fileobj=temp_file, mode='r:gz',
+                              bufsize=1024*1024*10) as tar:
                 extract_docs(tar, temp_dir)
 
             print "Building docset"
-            build(doc_dir = temp_dir, out_dir = out_dir, conf = "nightly.toml")
+            build(doc_dir=temp_dir, out_dir=out_dir, conf="nightly.toml")
 
             with open(TAG_FILE, "w+t") as f:
                 f.write(tag_from_response(r))
@@ -96,16 +100,26 @@ def ensure_abs(path, prefix):
 
 def validate_docset(ds):
     result = []
-    for key in ['name', 'plist', 'type']:
-        value = ds[key]
+    for key in ['name', 'type']:
+        value = ds.get(key, None)
         if not value:
-            result.append("Docset attribute '%s' couldn't be empty", key)
+            result.append("Docset attribute '%s' couldn't be empty" % key)
 
     return result
 
 
+def template_from(info, key, prefix_path, default):
+    if not key in info:
+        data = default
+    else:
+        path = ensure_abs(info[key], prefix_path)
+        with open(template_path, "rt") as f:
+            data = f.read()
+    return Template(data)
+
+
 @task
-def build(doc_dir = None, out_dir=None, conf="rust_ds.toml"):
+def build(doc_dir=None, out_dir=None, conf="docset.toml"):
     """Builds a docset from doc_dir using settings.
 Command line arguments to doc_dir and out_dir override
 corresponding conf values.
@@ -122,7 +136,18 @@ Warning: out dir is cleaned before"""
             print e, "\n"
         sys.exit(1)
 
-    ds['plist'] = ensure_abs(ds['plist'], os.path.dirname(conf))
+    if not 'version' in ds:
+        ds['version'] = "0.1"
+
+    plist_template = template_from(ds, 'plist', os.path.dirname(conf), templates.INFO_PLIST)
+    ds['plist'] = plist_template.render({
+        'time': datetime.now(),
+        'name': ds['name'],
+        'version': ds['version'],
+        'info': ds,
+        'bundle_id': ds['bundle_id']
+    })
+
     if 'icon' in ds:
         ds['icon'] = ensure_abs(ds['icon'], os.path.dirname(conf))
 
@@ -158,4 +183,31 @@ Warning: out dir is cleaned before"""
 
     if 'feed' in config:
         feed = config['feed']
-        #xml = feed['template']
+        template = template_from(ds, 'template', os.path.dirname(conf), templates.FEED_XML)
+
+        TGZ_TEMP = os.path.join(out_dir, "%s.tar.gz" % ds['name'])
+        DOC_DIR = os.path.join(out_dir, "%s.docset" % ds['name'])
+        run("tar --exclude='.DS_Store'  -s '#%s/##s' --options gzip:9 -czf %s %s" % (out_dir, TGZ_TEMP, DOC_DIR))
+
+        sha = run('openssl sha1 %s | cut -d "=" -f 2' % TGZ_TEMP, hide="out").stdout.strip()
+        TGZ_NAME = "%s-%s.tgz" % (ds['name'], sha[:8],)
+        TGZ = os.path.join(out_dir, TGZ_NAME)
+
+        xml = template.render({
+            'sha': sha,
+            'time': datetime.now(),
+            'name': ds['name'],
+            'file_name': TGZ_NAME,
+            'version': ds['version'],
+            'info': ds,
+            'base_url': feed['base_url']
+        })
+        feed_xml_path = os.path.join(out_dir, "%s.xml" % ds['name'])
+
+        with open(feed_xml_path, "w+t") as f:
+            f.write(xml)
+
+        run("mv %s %s" % (TGZ_TEMP, TGZ,))
+
+        if 'upload_cmd' in feed:
+            run("%s %s %s" % (feed['upload_cmd'], TGZ, feed_xml_path,))

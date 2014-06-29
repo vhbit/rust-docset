@@ -2,3 +2,4 @@ invoke==0.8.2
 lxml==3.3.5
 requests==2.3.0
 toml==0.8.2
+Jinja2==2.7.3

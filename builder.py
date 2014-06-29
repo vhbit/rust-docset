@@ -14,9 +14,10 @@ def build_docset(info, ds_rules, src_dir, out_dir):
     if not os.path.exists(doc_dir):
         os.makedirs(doc_dir)
 
-    shutil.copy2(info['plist'],
-                 os.path.join(content_dir, "Info.plist"))
-    if os.path.exists(info['icon']):
+    with open(os.path.join(content_dir, "Info.plist"), "w+t") as f:
+        f.write(info['plist'])
+
+    if 'icon' in info and os.path.exists(info['icon']):
         shutil.copy2(info['icon'], root_dir)
 
     idx = Index(index_path)
