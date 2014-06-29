@@ -4,8 +4,8 @@ import os
 import shutil
 
 
-def build_docset(settings, src_dir, out_dir):
-    root_dir = os.path.join(out_dir, settings.DOCSET_NAME + '.docset')
+def build_docset(info, ds_rules, src_dir, out_dir):
+    root_dir = os.path.join(out_dir, info['name'] + '.docset')
     content_dir = os.path.join(root_dir, 'Contents')
     resources_dir = os.path.join(content_dir, 'Resources')
     doc_dir = os.path.join(resources_dir, 'Documents')
@@ -14,10 +14,10 @@ def build_docset(settings, src_dir, out_dir):
     if not os.path.exists(doc_dir):
         os.makedirs(doc_dir)
 
-    shutil.copy2(settings.TEMPLATE_PLIST,
+    shutil.copy2(info['plist'],
                  os.path.join(content_dir, "Info.plist"))
-    if os.path.exists(settings.TEMPLATE_ICON):
-        shutil.copy2(settings.TEMPLATE_ICON, root_dir)
+    if os.path.exists(info['icon']):
+        shutil.copy2(info['icon'], root_dir)
 
     idx = Index(index_path)
 
@@ -34,6 +34,6 @@ def build_docset(settings, src_dir, out_dir):
                 'idx': idx
             }
 
-            rules.process_file_rules(settings.RULES, ctx)
+            rules.process_file_rules(ds_rules, ctx)
 
     idx.flush()

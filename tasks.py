@@ -93,8 +93,16 @@ def ensure_abs(path, prefix):
     else:
         return os.path.join(prefix, path)
 
-class Mod(object):
-    pass
+
+def validate_docset(ds):
+    result = []
+    for key in ['name', 'plist', 'type']:
+        value = ds[key]
+        if not value:
+            result.append("Docset attribute '%s' couldn't be empty", key)
+
+    return result
+
 
 @task
 def build(doc_dir = None, out_dir=None, conf="rust_ds.toml"):
@@ -108,21 +116,22 @@ Warning: out dir is cleaned before"""
         config = toml.loads(cf.read())
 
     ds = config['docset']
-    mod = Mod()
-    mod.DOCSET_NAME = ds['name']
-    mod.TEMPLATE_PLIST = ensure_abs(ds['plist'], os.path.dirname(conf))
-    mod.TEMPLATE_ICON = ensure_abs(ds['icon'], os.path.dirname(conf))
-
-    if not 'type' in ds:
-        print "Invalid configuration: 'type' is missing"
+    errors = validate_docset(ds)
+    if errors:
+        for e in errors:
+            print e, "\n"
         sys.exit(1)
-    else:
-        parts = ds['type'].split(":")
-        if len(parts) == 1:
-            parts.append("default")
 
-        ty_mod = mod_with_name(parts[0], "Failed to import docset type specs: %(name)s")
-        mod.RULES = ty_mod.__getattribute__(parts[1])
+    ds['plist'] = ensure_abs(ds['plist'], os.path.dirname(conf))
+    if 'icon' in ds:
+        ds['icon'] = ensure_abs(ds['icon'], os.path.dirname(conf))
+
+    parts = ds['type'].split(":")
+    if len(parts) == 1:
+        parts.append("default")
+
+    ty_mod = mod_with_name(parts[0], "Failed to import docset type specs: %(name)s")
+    rules = ty_mod.__getattribute__(parts[1])
 
     if not doc_dir and 'doc_dir' in ds:
         doc_dir = ensure_abs(ds['doc_dir'], os.path.dirname(conf))
@@ -145,4 +154,8 @@ Warning: out dir is cleaned before"""
 
     os.makedirs(out_dir)
 
-    build_docset(mod, doc_dir, out_dir)
+    build_docset(ds, rules, doc_dir, out_dir)
+
+    if 'feed' in config:
+        feed = config['feed']
+        #xml = feed['template']
