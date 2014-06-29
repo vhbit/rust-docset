@@ -14,7 +14,8 @@ def build_docset(settings, src_dir, out_dir):
     if not os.path.exists(doc_dir):
         os.makedirs(doc_dir)
 
-    shutil.copy2(settings.TEMPLATE_PLIST, content_dir)
+    shutil.copy2(settings.TEMPLATE_PLIST,
+                 os.path.join(content_dir, "Info.plist"))
     if os.path.exists(settings.TEMPLATE_ICON):
         shutil.copy2(settings.TEMPLATE_ICON, root_dir)
 
