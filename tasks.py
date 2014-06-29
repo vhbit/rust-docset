@@ -4,12 +4,12 @@ import importlib
 import os
 import requests
 import shutil
+import sys
 import tarfile
 from tempfile import TemporaryFile, mkdtemp
+import toml
 
 NIGHTLY_URL = "http://static.rust-lang.org/dist/rust-nightly-x86_64-unknown-linux-gnu.tar.gz"
-#NIGHTLY_DEST = "nightly.tar.gz"
-#NIGHTLY_DOC = "nightly_preparation"
 TAG_FILE = ".last-tag"
 DOC_PREFIX = "rust-nightly-x86_64-unknown-linux-gnu/doc"
 
@@ -79,8 +79,25 @@ def update_nightly(force=False, out_dir="nightly_out"):
             shutil.rmtree(temp_dir)
 
 
+def mod_with_name(name, error_fmt):
+    try:
+        return importlib.import_module(name)
+    except ImportError as e:
+        print error_fmt % {'name': name}
+        sys.exit(2)
+
+
+def ensure_abs(path, prefix):
+    if os.path.isabs(path):
+        return path
+    else:
+        return os.path.join(prefix, path)
+
+class Mod(object):
+    pass
+
 @task
-def build(doc_dir, out_dir=".", settings="nightly_settings"):
+def build(doc_dir = "", out_dir="doc_out", settings="nightly_settings", conf=None):
     """Builds a docset from doc_dir using settings.
 Warning: out dir is cleaned before"""
 
@@ -96,9 +113,29 @@ Warning: out dir is cleaned before"""
 
     os.makedirs(out_dir)
 
-    try:
-        mod = importlib.import_module(settings)
-    except ImportError as e:
-        raise ImportError("Failed to import settings from %s", settings)
+    if conf:
+        conf = os.path.abspath(conf)
+        with open(conf) as cf:
+            config = toml.loads(cf.read())
+
+        ds = config['docset']
+        mod = Mod()
+        mod.DOCSET_NAME = ds['name']
+        mod.TEMPLATE_PLIST = ensure_abs(ds['plist'], os.path.dirname(conf))
+        mod.TEMPLATE_ICON = ensure_abs(ds['icon'], os.path.dirname(conf))
+
+        if 'type' in ds:
+            ty_mod = mod_with_name(ds['type'], "Failed to import docset type specs: %(name)s")
+            mod.TYPE_MAP_FN = ty_mod.TYPE_MAP_FN
+            mod.RULES = ty_mod.RULES
+
+        if 'doc_dir' in ds:
+            doc_dir = ensure_abs(ds['doc_dir'], os.path.dirname(conf))
+
+        if 'out_dir' in ds:
+            out_dir = ensure_abs(ds['out_dir'], os.path.dirname(conf))
+
+    else:
+        mod = mod_with_name(ds['type'], "Failed to import settings: %(name)s")
 
     build_docset(mod, doc_dir, out_dir)
