@@ -98,14 +98,42 @@ def ensure_abs(path, prefix):
         return os.path.join(prefix, path)
 
 
-def validate_docset(ds):
-    result = []
-    for key in ['name', 'type']:
-        value = ds.get(key, None)
-        if not value:
-            result.append("Docset attribute '%s' couldn't be empty" % key)
+def not_empty(key):
+    def __closure__(section, data):
+        if (key not in data) or (not data[key]):
+            return "[%s.%s] should have a value" % (section, key,)
+        return None
 
-    return result
+    return __closure__
+
+
+def flatten(lst_of_lst):
+    def concat(a, b):
+        a.extend(b)
+        return a
+    return reduce(lambda a, b: concat(a, b), lst_of_lst, [])
+
+
+def validate_section(cfg, section_name, rules):
+    if not section_name in cfg:
+        return ["Section [%s] must be presented" % section_name]
+    else:
+        data = cfg[section_name]
+        return filter(lambda x: x != None,
+                      map(lambda r: r(section_name, data), rules))
+
+
+def validate_config(cfg):
+    sections = {
+        'docset': [not_empty('name'), not_empty('type'), not_empty('bundle_id')],
+    }
+
+    # feed is optional section
+    if 'feed' in cfg:
+        sections['feed'] = [not_empty('base_url')]
+
+    return flatten(map(lambda (s, r): validate_section(cfg, s, r),
+                       sections.items()))
 
 
 def template_from(info, key, prefix_path, default):
@@ -118,6 +146,24 @@ def template_from(info, key, prefix_path, default):
     return Template(data)
 
 
+def exit_with(code, message):
+    if isinstance(message, str):
+        sys.stdout.write(message)
+        sys.stdout.write("\n")
+    elif isinstance(message, list):
+        for l in message:
+            sys.stdout.write(l)
+            sys.stdout.write("\n")
+    sys.stdout.flush()
+    sys.exit(code)
+
+
+def warn(message):
+    sys.stdout.write(message)
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+
+
 @task
 def build(doc_dir=None, out_dir=None, conf="docset.toml"):
     """Builds a docset from doc_dir using settings.
@@ -126,18 +172,22 @@ corresponding conf values.
 
 Warning: out dir is cleaned before"""
     conf = os.path.abspath(conf)
+
+    if not os.path.exists(conf):
+        exit_with(1, "There is no configuration at path %s" % conf)
+
     with open(conf) as cf:
         config = toml.loads(cf.read())
 
-    ds = config['docset']
-    errors = validate_docset(ds)
+    errors = validate_config(config)
     if errors:
-        for e in errors:
-            print e, "\n"
-        sys.exit(1)
+        exit_with(1, errors)
 
+    ds = config['docset']
     if not 'version' in ds:
-        ds['version'] = "0.1"
+        def_version = "0.1"
+        warn("No [docset.version] found, defaulting to %s" % def_version)
+        ds['version'] = def_version
 
     plist_template = template_from(ds, 'plist', os.path.dirname(conf), templates.INFO_PLIST)
     ds['plist'] = plist_template.render({
@@ -158,24 +208,36 @@ Warning: out dir is cleaned before"""
     ty_mod = mod_with_name(parts[0], "Failed to import docset type specs: %(name)s")
     rules = ty_mod.__getattribute__(parts[1])
 
-    if not doc_dir and 'doc_dir' in ds:
-        doc_dir = ensure_abs(ds['doc_dir'], os.path.dirname(conf))
-
-    if not out_dir and 'out_dir' in ds:
-        out_dir = ensure_abs(ds['out_dir'], os.path.dirname(conf))
-
+    warns = {}
     if not doc_dir:
-        doc_dir = "."
+        if 'doc_dir' in ds:
+            doc_dir = ensure_abs(ds['doc_dir'], os.path.dirname(conf))
+        else:
+            warns['doc_dir'] = True
+            doc_dir = '.'
+
+    if not out_dir:
+        if 'out_dir' in ds:
+            out_dir = ensure_abs(ds['out_dir'], os.path.dirname(conf))
+        else:
+            warns['out_dir'] = True
+            out_dir = 'ds_out'
 
     doc_dir = os.path.abspath(doc_dir)
     out_dir = os.path.abspath(out_dir)
+
+    # Have to delay to get full path
+    if 'doc_dir' in warns:
+        warn("doc_dir wasn't specified, defaulting to %s" % doc_dir)
+
+    if 'out_dir' in warns:
+        warn("out_dir wasn't specified, defaulting to %s" % out_dir)
 
     if os.path.exists(out_dir):
         if os.path.isdir(out_dir):
             shutil.rmtree(out_dir)
         else:
-            sys.stderr.write("Output dir points to a file!\n")
-            sys.exit(1)
+            exit_with(1, "Output dir points to a file!\n")
 
     os.makedirs(out_dir)
 
