@@ -1,6 +1,11 @@
 [docset]
 name = "Rust Nightly"
-plist = "template/Info.plist"
+bundle_id = "rust"
+version = "0.0.4"
 icon = "template/icon.png"
 type = "docset.rust:nightly"
 out_dir = "nightly_out"
+
+[feed]
+base_url = "http://s3-us-west-2.amazonaws.com/net.vhbit.rust-doc"
+upload_cmd = "./upload.sh"
