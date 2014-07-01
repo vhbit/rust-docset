@@ -1,7 +1,7 @@
 Quick link
 -----------
 
-[Rust Nighly feed](dash-feed://https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fnet.vhbit.rust-doc%2FRustNightly.xml) updated with nightly
+[Rust Nighly feed](http://vhbit.net/rust-feed) updated automatically when new nightly available
 
 rust-docset
 =============
