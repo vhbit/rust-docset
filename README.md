@@ -29,7 +29,7 @@ Installation
 
     git clone https://github.com/vhbit/rust-docset.git
     cd rust-docset
-    virtualenv create .venv
+    virtualenv .venv
     source .venv/bin/activate
     pip install -r requirements.txt
 
