@@ -1,9 +1,10 @@
 from datetime import datetime
 from docset import build_docset
 from docset.rust import templates
-from jinja2 import Template
+import hashlib
 from invoke import run, task
 import importlib
+from jinja2 import Template
 import os
 import requests
 import shutil
@@ -248,10 +249,18 @@ Warning: out dir is cleaned before"""
         template = template_from(ds, 'template', os.path.dirname(conf), templates.FEED_XML)
 
         TGZ_TEMP = os.path.join(out_dir, "%s.tar.gz" % ds['name'])
-        DOC_DIR = os.path.join(out_dir, "%s.docset" % ds['name'])
-        run("tar --exclude='.DS_Store'  -s '#%s/##s' --options gzip:9 -czf %s %s" % (out_dir, TGZ_TEMP, DOC_DIR))
+        DOCSET_DIR = "%s.docset" % ds['name']
+        DOC_DIR = os.path.join(out_dir, DOCSET_DIR)
 
-        sha = run('openssl sha1 %s | cut -d "=" -f 2' % TGZ_TEMP, hide="out").stdout.strip()
+        with tarfile.open(TGZ_TEMP, "w:gz", bufsize=1024*1024*10) as tar:
+            tar.add(DOC_DIR, arcname = DOCSET_DIR)
+
+        hash = hashlib.sha1()
+        with open(TGZ_TEMP) as f:
+            chunk = f.read(1024*1024*10)
+            hash.update(chunk)
+
+        sha = hash.hexdigest()
         TGZ_NAME = "%s-%s.tgz" % (ds['name'], sha[:8],)
         TGZ = os.path.join(out_dir, TGZ_NAME)
 
@@ -269,7 +278,7 @@ Warning: out dir is cleaned before"""
         with open(feed_xml_path, "w+t") as f:
             f.write(xml)
 
-        run("mv %s %s" % (TGZ_TEMP, TGZ,))
+        os.rename(TGZ_TEMP, TGZ)
 
         if 'upload_cmd' in feed:
             run("%s %s %s" % (feed['upload_cmd'], TGZ, feed_xml_path,))
