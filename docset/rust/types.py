@@ -2,7 +2,7 @@ TO_DASH_TYPE = {
     "gd": "Guide",
     "fn": "Function",
     "trait": "Trait",
-    "struct": "Struct",
+    "struct": "_Struct",
     "structfield": "Field",
     "mod": "Module",
     "type": "Type",
