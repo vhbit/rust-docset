@@ -281,4 +281,4 @@ Warning: out dir is cleaned before"""
         os.rename(TGZ_TEMP, TGZ)
 
         if 'upload_cmd' in feed:
-            run("%s %s %s" % (feed['upload_cmd'], TGZ, feed_xml_path,))
+            run('"%s" "%s" "%s"' % (feed['upload_cmd'], TGZ, feed_xml_path,))
