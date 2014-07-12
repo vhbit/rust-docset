@@ -1,10 +1,13 @@
 from docset.actions import cached_html, update_toc
 from docset.scrape import scrape
-from rust_doc import guide_title
 import index_rules
+import logging
 import os
+from rust_doc import guide_title
 import toc_rules
 from types import to_dash_type
+
+log = logging.getLogger('docset.rust')
 
 
 # Creates a full qualified name based on prefix and name
@@ -32,7 +35,8 @@ def add_guide(ctx, tree):
 def add_module(ctx, tree):
     fqn_prefix = os.path.dirname(ctx['rel_path']).replace(os.sep, "::")
     ctx['idx'].add(fqn_prefix, "mod", ctx['rel_path'], to_dash_type)
-    update_toc(ctx, tree, toc_rules.by_type("mod"), lambda x: to_dash_type(x, x))
+    update_toc(ctx, tree, toc_rules.by_type("mod"),
+               lambda x: to_dash_type(x, x))
 
 
 @cached_html
@@ -44,7 +48,11 @@ def add_decl_html(ctx, tree):
     dirname = os.path.dirname(rel_path)
 
     fqn_prefix = dirname.replace(os.sep, "::")
-    ty, name = name.split(".")
+    name_parts = name.split('.')
+    if len(name_parts) < 2:
+        log.error("Unexpected HTML file: %s" % rel_path)
+        return
+    ty, name = name_parts
     fqn = make_fqn(fqn_prefix, name)
 
     # Process children before, as it allows to
