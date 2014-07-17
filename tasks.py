@@ -257,9 +257,13 @@ Warning: out dir is cleaned before"""
 
         hash = hashlib.sha1()
         with open(TGZ_TEMP) as f:
-            chunk = f.read(1024*1024*10)
-            hash.update(chunk)
-
+            while True:
+                chunk = f.read(1024*1024*5)
+                if not chunk:
+                    break
+                else:
+                    hash.update(chunk)
+        
         sha = hash.hexdigest()
         TGZ_NAME = "%s-%s.tgz" % (ds['name'], sha[:8],)
         TGZ = os.path.join(out_dir, TGZ_NAME)
