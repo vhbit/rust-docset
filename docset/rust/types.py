@@ -15,7 +15,8 @@ TO_DASH_TYPE = {
     "variant": "Variant",
     "enum": "Enum",
     "ffs": "Constant",
-    "tymethod": "Method"
+    "tymethod": "Method",
+    "constant": "Constant"
 }
 
 
