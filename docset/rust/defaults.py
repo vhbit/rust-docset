@@ -32,6 +32,11 @@ RUST_STD_RULES = [
     [rel_path(matches='.*\\.(epub|tex|pdf)$'), None],
     [rel_path(matches='not_found\\.html$'), None],
     [rel_path(matches='complement-bugreport\\.html$'), None],
+
+    # deprecated guides
+    [rel_path(matches='rust\\.html$'), None],
+    [rel_path(matches='tutorial\\.html$'), None],
+
     [rel_path(startswith="src"), cp_file],
     [rel_path(dirname=""), rel_path(matches='.*\\.html$'), add_guide],
     [rel_path(matches=r'stability\.html'), cp_file],
