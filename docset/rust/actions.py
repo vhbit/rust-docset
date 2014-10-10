@@ -25,20 +25,21 @@ def path_with_ref(path, ref):
 
 @cached_html
 def add_guide(ctx, tree):
-    # This one should work only for nigthly builds
-    #
-    # Special case, main index "index.html" and "rustdoc.html"
-    # have the same title "Rust Documentation", which is rather
-    # confusing.
-    #
-    # What happens here - index is just given title "Index"
+    """
+    This one should work only for nigthly builds
+
+    Special case, main index "index.html" and "rustdoc.html"
+    have the same title "Rust Documentation", which is rather
+    confusing.
+    """
     if ctx['rel_path'] == 'index.html':
-        ctx['idx'].add("Index", "gd", ctx['rel_path'], to_dash_type)
+        titles = ["Overview"]
     else:
         titles = scrape(tree, index_rules.guide_titles())
-        if len(titles) > 0:
-            ctx['idx'].add(guide_title(titles[0][0]),
-                           "gd", ctx['rel_path'], to_dash_type)
+
+    if len(titles) > 0:
+        ctx['idx'].add(guide_title(titles[0][0]),
+                       "gd", ctx['rel_path'], to_dash_type)
 
 
 @cached_html
