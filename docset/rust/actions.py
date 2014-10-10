@@ -33,7 +33,7 @@ def add_guide(ctx, tree):
     confusing.
     """
     if ctx['rel_path'] == 'index.html':
-        titles = ["Overview"]
+        titles = [["Overview"]]
     else:
         titles = scrape(tree, index_rules.guide_titles())
 
