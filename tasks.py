@@ -183,7 +183,7 @@ def build_in_dir(root_dir, config, doc_dir = None, out_dir = None):
         'version': ds['version'],
         'info': ds,
         'bundle_id': ds['bundle_id'],
-        'index_file': ds['index_file'] or "index.html"
+        'index_file': ds.get('index_file', "index.html")
     })
 
     if 'icon' in ds:
