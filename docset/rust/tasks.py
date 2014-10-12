@@ -10,8 +10,9 @@ import sys
 import tarfile
 from tempfile import TemporaryFile, mkdtemp
 
-from ..tasks import build, build_in_dir, exit_with
-import templates
+from docset.rust import templates
+from docset.tasks import build, build_in_dir, exit_with
+
 
 def nightly_url(platform):
     return "http://static.rust-lang.org/dist/rust-nightly-%s.tar.gz" % platform
@@ -100,7 +101,7 @@ def cargo_result(args):
     import json
     from subprocess import check_output, CalledProcessError, STDOUT 
     try:
-        output = check_output(["cargo"] + args, stderr = STDOUT)
+        output = check_output(["cargo"] + args, stderr=STDOUT, universal_newlines=True)
         decoded = json.loads(output)
         return decoded
     except CalledProcessError as e:

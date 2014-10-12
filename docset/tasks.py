@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 from datetime import datetime
+from functools import reduce
 import hashlib
 from invoke import run, task
 import importlib
@@ -12,7 +13,7 @@ import sys
 import tarfile
 import toml
 
-from .builder import build_docset
+from docset.builder import build_docset
 
 
 def mod_with_name(name, error_fmt):
@@ -51,8 +52,8 @@ def validate_section(cfg, section_name, rules):
         return ["Section [%s] must be presented" % section_name]
     else:
         data = cfg[section_name]
-        return filter(lambda x: x != None,
-                      map(lambda r: r(section_name, data), rules))
+        return list(filter(lambda x: x != None,
+                          list(map(lambda r: r(section_name, data), rules))))
 
 
 def validate_config(cfg):
@@ -64,7 +65,7 @@ def validate_config(cfg):
     if 'feed' in cfg:
         sections['feed'] = [not_empty('base_url')]
 
-    return flatten(map(lambda (s, r): validate_section(cfg, s, r),
+    return flatten(map(lambda s_r: validate_section(cfg, s_r[0], s_r[1]),
                        sections.items()))
 
 
@@ -179,7 +180,7 @@ def build_in_dir(root_dir, config, doc_dir = None, out_dir = None):
             tar.add(DOC_DIR, arcname = DOCSET_DIR)
 
         hash = hashlib.sha1()
-        with open(TGZ_TEMP) as f:
+        with open(TGZ_TEMP, "rb") as f:
             while True:
                 chunk = f.read(1024*1024*5)
                 if not chunk:

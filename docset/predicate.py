@@ -18,9 +18,9 @@ def predicate_fn(pair):
 
 
 def construct_predicate(**kwargs):
-    fn_list = filter(lambda x: x != None, map(predicate_fn, kwargs.items()))
+    fn_list = list(filter(lambda x: x != None, map(predicate_fn, kwargs.items())))
     if len(fn_list) == 0:
-        print "Invalid predicate"
+        print("Invalid predicate")
         log.warn("Check rules, one of predicates has no arguments, will always fail")
 
     def closure(data):
