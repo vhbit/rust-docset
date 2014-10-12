@@ -1,13 +1,13 @@
 import logging
 import os
 
-from ..actions import cached_html, update_toc
-from ..scrape import scrape
+from docset.actions import cached_html, update_toc
+from docset.scrape import scrape
 
-import index_rules
-from .rust_doc import guide_title
-import toc_rules
-from .types import to_dash_type
+from docset.rust import index_rules
+from docset.rust import toc_rules
+from docset.rust.rust_doc import guide_title
+from docset.rust.types import to_dash_type
 
 log = logging.getLogger('docset.rust')
 
