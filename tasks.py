@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from datetime import datetime
 from docset import build_docset
 from docset.rust import templates
@@ -56,24 +58,24 @@ def update_nightly(force=False, out_dir="nightly_out"):
     """Checks for update and re-builds doc if required. Stores new tag"""
     if not force:
         if not has_nightly_update():
-            print "No updates available yet"
+            print("No updates available yet")
             return
 
     r = requests.get(NIGHTLY_URL, stream=True)
     with TemporaryFile("w+b") as temp_file:
-        print "Downloading"
+        print("Downloading")
         for chunk in r.iter_content(1024*1024*10):
             temp_file.write(chunk)
 
         temp_dir = mkdtemp()
         try:
-            print "Extracting to", temp_dir
+            print("Extracting to", temp_dir)
             temp_file.seek(0)
             with tarfile.open(fileobj=temp_file, mode='r:gz',
                               bufsize=1024*1024*10) as tar:
                 extract_docs(tar, temp_dir)
 
-            print "Building docset"
+            print("Building docset")
             build(doc_dir=temp_dir, out_dir=out_dir, conf="nightly.toml")
 
             with open(TAG_FILE, "w+t") as f:
@@ -88,7 +90,7 @@ def mod_with_name(name, error_fmt):
     try:
         return importlib.import_module(name)
     except ImportError as e:
-        print error_fmt % {'name': name}
+        print(error_fmt % {'name': name})
         sys.exit(2)
 
 
@@ -148,14 +150,16 @@ def template_from(info, key, prefix_path, default):
 
 
 def exit_with(code, message):
+    if code != 0:
+        out = sys.stderr
+    else:
+        out = sys.stdout
     if isinstance(message, str):
-        sys.stdout.write(message)
-        sys.stdout.write("\n")
+        print(message, file=out)
     elif isinstance(message, list):
         for l in message:
-            sys.stdout.write(l)
-            sys.stdout.write("\n")
-    sys.stdout.flush()
+            print(message, file=out)
+    out.flush()
     sys.exit(code)
 
 
@@ -165,42 +169,25 @@ def warn(message):
     sys.stdout.flush()
 
 
-@task
-def build(doc_dir=None, out_dir=None, conf="docset.toml"):
-    """Builds a docset from doc_dir using settings.
-Command line arguments to doc_dir and out_dir override
-corresponding conf values.
-
-Warning: out dir is cleaned before"""
-    conf = os.path.abspath(conf)
-
-    if not os.path.exists(conf):
-        exit_with(1, "There is no configuration at path %s" % conf)
-
-    with open(conf) as cf:
-        config = toml.loads(cf.read())
-
-    errors = validate_config(config)
-    if errors:
-        exit_with(1, errors)
-
+def build_in_dir(root_dir, config, doc_dir = None, out_dir = None):
     ds = config['docset']
     if not 'version' in ds:
         def_version = "0.1"
         warn("No [docset.version] found, defaulting to %s" % def_version)
         ds['version'] = def_version
 
-    plist_template = template_from(ds, 'plist', os.path.dirname(conf), templates.INFO_PLIST)
+    plist_template = template_from(ds, 'plist', root_dir, templates.INFO_PLIST)
     ds['plist'] = plist_template.render({
         'time': datetime.now(),
         'name': ds['name'],
         'version': ds['version'],
         'info': ds,
-        'bundle_id': ds['bundle_id']
+        'bundle_id': ds['bundle_id'],
+        'index_file': ds['index_file'] or "index.html"
     })
 
     if 'icon' in ds:
-        ds['icon'] = ensure_abs(ds['icon'], os.path.dirname(conf))
+        ds['icon'] = ensure_abs(ds['icon'], root_dir)
 
     parts = ds['type'].split(":")
     if len(parts) == 1:
@@ -212,14 +199,14 @@ Warning: out dir is cleaned before"""
     warns = {}
     if not doc_dir:
         if 'doc_dir' in ds:
-            doc_dir = ensure_abs(ds['doc_dir'], os.path.dirname(conf))
+            doc_dir = ensure_abs(ds['doc_dir'], root_dir)
         else:
             warns['doc_dir'] = True
             doc_dir = '.'
 
     if not out_dir:
         if 'out_dir' in ds:
-            out_dir = ensure_abs(ds['out_dir'], os.path.dirname(conf))
+            out_dir = ensure_abs(ds['out_dir'], root_dir)
         else:
             warns['out_dir'] = True
             out_dir = 'ds_out'
@@ -246,7 +233,7 @@ Warning: out dir is cleaned before"""
 
     if 'feed' in config:
         feed = config['feed']
-        template = template_from(ds, 'template', os.path.dirname(conf), templates.FEED_XML)
+        template = template_from(ds, 'template', root_dir, templates.FEED_XML)
 
         TGZ_TEMP = os.path.join(out_dir, "%s.tar.gz" % ds['name'])
         DOCSET_DIR = "%s.docset" % ds['name']
@@ -286,3 +273,70 @@ Warning: out dir is cleaned before"""
 
         if 'upload_cmd' in feed:
             run('"%s" "%s" "%s"' % (feed['upload_cmd'], TGZ, feed_xml_path,))
+
+
+@task
+def build(doc_dir=None, out_dir=None, conf="docset.toml"):
+    """Builds a docset from doc_dir using settings.
+Command line arguments to doc_dir and out_dir override \
+corresponding conf values.
+
+Warning: out dir is cleaned before"""
+    conf = os.path.abspath(conf)
+
+    if not os.path.exists(conf):
+        exit_with(1, "There is no configuration at path %s" % conf)
+
+    with open(conf) as cf:
+        config = toml.loads(cf.read())
+
+    errors = validate_config(config)
+    if errors:
+        exit_with(1, errors)
+
+    build_in_dir(os.path.dirname(conf), config, doc_dir, out_dir)
+
+
+def cargo_result(args):
+    import json
+    from subprocess import check_output, CalledProcessError, STDOUT 
+    try:
+        output = check_output(["cargo"] + args, stderr = STDOUT)
+        decoded = json.loads(output)
+        return decoded
+    except CalledProcessError as e:
+        exit_with(1, "Cargo error: %s" % e.output)
+    except ValueError as e:
+        exit_with(1, "Failed to parse cargo output: %s" % e)
+
+
+@task 
+def cargo_doc(feed_base_url = None):
+    """Builds docset for cargo project
+
+If feed base url is present also generates a feed file. \
+Base url isn't checked, so it could be a marker, which will be \
+processed later by other tools like sed."""
+    proj_loc = cargo_result(["locate-project"])
+    proj_root = os.path.dirname(proj_loc["root"])
+    manifest = cargo_result(["read-manifest", "--manifest-path=%s" % proj_root])
+
+    docset_dir = os.path.join(proj_root, "target", "docset")
+    shutil.rmtree(docset_dir, True)
+
+    ds = {
+        "name": manifest["name"],
+        "version": manifest["version"],
+        "bundle_id": manifest["name"],
+        "type": "docset.rust",
+        "doc_dir": os.path.join(proj_root, "target", "doc"),
+        "out_dir": docset_dir,
+        "index_file": os.path.join(manifest["name"], "index.html")
+    }
+
+    config = {"docset": ds}
+
+    if feed_base_url:
+        config["feed"] = {"base_url": feed_base_url}
+
+    build_in_dir(proj_root, config)

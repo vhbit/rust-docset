@@ -12,7 +12,7 @@ INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
          <string>{{ bundle_id }}</string>
          <key>CFBundleName</key>
          <string>{{ name }}</string>
-         <key>dashIndexFilePath</key><string>index.html</string>
+         <key>dashIndexFilePath</key><string>{{ index_file }}</string>
          <key>DocSetPlatformFamily</key>
          <string>rust</string>
          <key>isDashDocset</key><true/>
