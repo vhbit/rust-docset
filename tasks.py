@@ -83,6 +83,8 @@ def update_nightly(force=False, out_dir="nightly_out"):
         except:
             import traceback
             traceback.print_exc()
+            exit_with(1, "Internal error")
+        finally:
             shutil.rmtree(temp_dir)
 
 
