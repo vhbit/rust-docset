@@ -1,13 +1,12 @@
 from __future__ import print_function
 
 from datetime import datetime
-from docset import build_docset
-from docset.rust import templates
 import hashlib
 from invoke import run, task
 import importlib
 from jinja2 import Template
 import os
+from pkg_resources import resource_filename
 import requests
 import shutil
 import sys
@@ -15,6 +14,8 @@ import tarfile
 from tempfile import TemporaryFile, mkdtemp
 import toml
 
+from .builder import build_docset
+from .rust import templates
 
 def nightly_url(platform):
     return "http://static.rust-lang.org/dist/rust-nightly-%s.tar.gz" % platform
@@ -87,7 +88,7 @@ def update_nightly(force=False, out_dir="nightly_out", platform = "x86_64-unknow
                 extract_docs(tar, temp_dir, doc_prefix(platform))
 
             print("Building docset")
-            build(doc_dir=temp_dir, out_dir=out_dir, conf="nightly.toml")
+            build(doc_dir=temp_dir, out_dir=out_dir, conf=resource_filename(__name__, "rust/data/nightly.toml"))
 
             with open(tag_file, "w+t") as f:
                 f.write(tag_from_response(r))
@@ -200,7 +201,12 @@ def build_in_dir(root_dir, config, doc_dir = None, out_dir = None):
     })
 
     if 'icon' in ds:
-        ds['icon'] = ensure_abs(ds['icon'], root_dir)
+        icon_path = ds['icon']
+        res_prefix = "res://"
+        if icon_path.startswith(res_prefix):
+            ds['icon'] = resource_filename(__name__, icon_path[len(res_prefix):])
+        else:
+            ds['icon'] = ensure_abs(ds['icon'], root_dir)
 
     parts = ds['type'].split(":")
     if len(parts) == 1:
@@ -344,7 +350,8 @@ processed later by other tools like sed."""
         "type": "docset.rust",
         "doc_dir": os.path.join(proj_root, "target", "doc"),
         "out_dir": docset_dir,
-        "index_file": os.path.join(manifest["name"], "index.html")
+        "index_file": os.path.join(manifest["name"], "index.html"),
+        "icon": "res://rust/data/template/icon.png"
     }
 
     config = {"docset": ds}

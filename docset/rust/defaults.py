@@ -1,7 +1,7 @@
-from actions import add_guide, add_module, add_decl_html
-from docset.actions import cp_file, patch_file
+from ..actions import cp_file, patch_file
+from ..predicate import rel_path
 
-from docset.predicate import rel_path
+from .actions import add_guide, add_module, add_decl_html
 
 CSS_PATCH = """
 /* Dash DocSet overrides */

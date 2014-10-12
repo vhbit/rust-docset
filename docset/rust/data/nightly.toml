@@ -2,7 +2,7 @@
 name = "Rust Nightly"
 bundle_id = "rust"
 version = "0.0.4"
-icon = "template/icon.png"
+icon = "res://data/template/icon.png"
 type = "docset.rust:nightly"
 out_dir = "nightly_out"
 
