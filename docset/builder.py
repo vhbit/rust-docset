@@ -1,7 +1,8 @@
-from docset.index import Index
-from docset import rules
 import os
 import shutil
+
+from .index import Index
+import rules
 
 
 def build_docset(info, ds_rules, src_dir, out_dir):

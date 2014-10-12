@@ -3,7 +3,8 @@ from lxml import html
 import os
 import scrape
 import shutil
-from toc import inject_toc
+
+from .toc import inject_toc
 
 
 def cp_file(ctx):
