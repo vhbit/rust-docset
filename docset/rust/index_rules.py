@@ -29,6 +29,7 @@ BY_TYPE = {
     "trait": [METHOD_FILTER],
     "primitive": [METHOD_FILTER],
     "type": [METHOD_FILTER, VARIANT_FILTER],
+    "enum": [METHOD_FILTER, VARIANT_FILTER],
 }
 
 def by_type(ty):
