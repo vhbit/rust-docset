@@ -52,7 +52,8 @@ RUST_RULES = [
     [rel_path(startswith="src"), cp_file],
     [rel_path(dirname=""), rel_path(matches='.*\\.html$'), add_guide],
     [rel_path(matches=r'stability\.html'), cp_file],
-    [rel_path(matches=r'(index|mod|lib)\.html$'), add_module],
+    [rel_path(matches=r'^(index|mod)\.html$'), add_module],
+    [rel_path(matches=r'/(index|mod)\.html$'), add_module],
     [rel_path(matches='.*\\.html$'), add_decl_html],
     [cp_file]
 ]
