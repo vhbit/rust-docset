@@ -26,6 +26,7 @@ GUIDE_TITLES = {
     "The Rust Reference": "Language Reference",
     "Writing Unsafe and Low-Level Code in Rust": "Unsafe and Low-Level Code",
     "The Guide to Rust Strings": "Strings",
+    "The Rust Crates and Modules Guide": "Crates and Modules",
 }
 
 
