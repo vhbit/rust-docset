@@ -6,7 +6,12 @@ def inject_toc(tree, rules, ty_map_fn = None):
     for rule in rules:
         nodes = tree.xpath(rule["xpath"])
         for node in nodes:
-            (name, child_ty) = rule["fn"](node)
+            pair = rule["fn"](node)
+
+            if not pair:
+                continue
+
+            (name, child_ty) = pair
             toc_node = A(CLASS('dashAnchor'))
 
             if ty_map_fn:

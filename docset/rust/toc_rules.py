@@ -23,11 +23,20 @@ def simple_a_class_toc(klass):
     return { 'xpath': '//a[@class="%s"]' % klass,
              'fn': lambda node: (node.text, klass,)}
 
+
+def trait_impl(node):
+    if " for " in node.getparent().xpath("string()"):
+        fqn_parts = node.attrib["title"].split("::")
+        return (fqn_parts[-1], "trait",)
+    else:
+        return None
+
 FUNCTIONS_TOC_FILTER = simple_a_class_toc("fn")
 
 STRUCT_TOC_FILTER = simple_a_class_toc("struct")
 
-TRAIT_TOC_FILTER = simple_a_class_toc("trait")
+TRAIT_TOC_FILTER = {'xpath': '//h3[@class="impl"]/code/a[@class="trait"][last()]',
+                    'fn': trait_impl}
 
 METHOD_TOC_FILTER = {'xpath': '//*[@class="method"]',
                      'fn': toc_node_classifier}
