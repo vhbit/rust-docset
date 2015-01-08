@@ -17,11 +17,11 @@ import toml
 
 
 def nightly_url(platform):
-    return "http://static.rust-lang.org/dist/rust-nightly-%s.tar.gz" % platform
+    return "http://static.rust-lang.org/dist/rust-docs-nightly-%s.tar.gz" % platform
 
 
 def doc_prefix(platform):
-    return "rust-nightly-%s/doc" % platform
+    return "rust-docs-nightly-%s/share/doc/rust/html" % platform
 
 
 def tag_file_name(platform):

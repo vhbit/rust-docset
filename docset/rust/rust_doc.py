@@ -13,7 +13,7 @@ GUIDE_TITLES = {
     "The Rust Pointer Guide": "Pointers",
     "The Rust Reference Manual": "Reference Manual",
     "The Rust References and Lifetimes Guide": "References and Lifetimes",
-    "The Rust Tasks and Communication Guide": "Tasks and Communication",
+    "The Rust Threads and Communication Guide": "Threads and Communication",
     "The Rust Testing Guide": "Testing",
     "Writing Safe Unsafe and Low-Level Code": "Unsafe and Low-Level Code",
     "Rust Design FAQ": "Design FAQ",
@@ -27,6 +27,7 @@ GUIDE_TITLES = {
     "Writing Unsafe and Low-Level Code in Rust": "Unsafe and Low-Level Code",
     "The Guide to Rust Strings": "Strings",
     "The Rust Crates and Modules Guide": "Crates and Modules",
+    "The Rust Ownership Guide": "Ownership",
 }
 
 
