@@ -19,7 +19,7 @@ def nightly_url(platform):
 
 
 def doc_prefix(platform):
-    return "rust-docs-nightly-%s/share/doc/rust/html" % platform
+    return "rust-docs-nightly-%s/rust-docs/share/doc/rust/html" % platform
 
 
 def tag_file_name(platform):
@@ -99,7 +99,7 @@ def update_nightly(force=False, out_dir="nightly_out", platform = "x86_64-unknow
 
 def cargo_result(args):
     import json
-    from subprocess import check_output, CalledProcessError, STDOUT 
+    from subprocess import check_output, CalledProcessError, STDOUT
     try:
         output = check_output(["cargo"] + args, stderr=STDOUT, universal_newlines=True)
         decoded = json.loads(output)
@@ -110,7 +110,7 @@ def cargo_result(args):
         exit_with(1, "Failed to parse cargo output: %s" % e)
 
 
-@task 
+@task
 def cargo(feed_base_url = None):
     """Builds docset for cargo project
 
