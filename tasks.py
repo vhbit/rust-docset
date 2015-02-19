@@ -21,7 +21,7 @@ def nightly_url(platform):
 
 
 def doc_prefix(platform):
-    return "rust-docs-nightly-%s/share/doc/rust/html" % platform
+    return "rust-docs-nightly-%s/rust-docs/share/doc/rust/html" % platform
 
 
 def tag_file_name(platform):
@@ -263,7 +263,7 @@ def build_in_dir(root_dir, config, doc_dir = None, out_dir = None):
                     break
                 else:
                     hash.update(chunk)
-        
+
         sha = hash.hexdigest()
         TGZ_NAME = "%s-%s.tgz" % (ds['name'], sha[:8],)
         TGZ = os.path.join(out_dir, TGZ_NAME)
@@ -312,7 +312,7 @@ Warning: out dir is cleaned before"""
 
 def cargo_result(args):
     import json
-    from subprocess import check_output, CalledProcessError, STDOUT 
+    from subprocess import check_output, CalledProcessError, STDOUT
     try:
         output = check_output(["cargo"] + args, stderr = STDOUT)
         decoded = json.loads(output)
@@ -323,7 +323,7 @@ def cargo_result(args):
         exit_with(1, "Failed to parse cargo output: %s" % e)
 
 
-@task 
+@task
 def cargo_doc(feed_base_url = None):
     """Builds docset for cargo project
 
