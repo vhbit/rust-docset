@@ -44,7 +44,7 @@ def cached_html(f):
             f(ctx, tree)
 
         if ctx['html_modified']:
-            tree.write(ctx['dest_path'])
+            tree.write(ctx['dest_path'], method="html")
         else:
             cp_file(ctx) # FIXME: should it actually be copied?
 
