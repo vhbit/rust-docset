@@ -74,7 +74,7 @@ def update_nightly(force=False, out_dir="nightly_out", platform = "x86_64-unknow
 
     r = requests.get(url, stream=True)
     with TemporaryFile("w+b") as temp_file:
-        print("Downloading")
+        print("Downloading", url)
         for chunk in r.iter_content(1024*1024*10):
             temp_file.write(chunk)
 

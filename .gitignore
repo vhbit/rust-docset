@@ -55,3 +55,7 @@ docs/_build/
 *.tgz
 test/
 out/
+
+nightly
+nightly_out
+rust-docs-nightly-*

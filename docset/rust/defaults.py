@@ -39,9 +39,23 @@ RUST_STD_RULES = [
 
     [rel_path(startswith="src"), cp_file],
     [rel_path(dirname=""), rel_path(matches='.*\\.html$'), add_guide],
+
     [rel_path(dirname="book"), rel_path(matches='index\\.html$'), add_guide],
+    [rel_path(dirname="book"), rel_path(matches='.*\\.html$'), cp_file],
+
+    [rel_path(dirname="book"), rel_path(matches='index\\.html$'), add_guide],
+    [rel_path(dirname="book"), rel_path(matches='.*\\.html$'), cp_file],
+
+    [rel_path(dirname="nomicon"), rel_path(matches='index\\.html$'), add_guide],
+    [rel_path(dirname="nomicon"), rel_path(matches='.*\\.html$'), cp_file],
+
+    [rel_path(dirname="style"), rel_path(matches='index\\.html$'), add_guide],
+    [rel_path(matches='style.*\\.html$'), cp_file],
+
     [rel_path(matches=r'stability\.html'), cp_file],
     [rel_path(matches=r'(index|mod|lib)\.html$'), add_module],
+
+    [rel_path(matches='.*\\.(t|v|m)\\.html$'), None],
     [rel_path(matches='.*\\.html$'), add_decl_html],
     [cp_file]
 ]
@@ -55,6 +69,8 @@ RUST_RULES = [
     [rel_path(matches=r'stability\.html'), cp_file],
     [rel_path(matches=r'^(index|mod)\.html$'), add_module],
     [rel_path(matches=r'/(index|mod)\.html$'), add_module],
+
+    [rel_path(matches='.*\\.(t|v|m)\\.html$'), None],
     [rel_path(matches='.*\\.html$'), add_decl_html],
     [cp_file]
 ]

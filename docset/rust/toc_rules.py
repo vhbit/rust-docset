@@ -12,6 +12,10 @@ def placement_child_code(node):
     return node.xpath('./code')[0]
 
 
+def placement_child_span_code(node):
+    return node.xpath('./span/code')[0]
+
+
 def static_from_text(text):
     m = IDENT_RE.search(text)
     if m:
@@ -45,9 +49,9 @@ FIELDS_TOC_FILTER = {'xpath': '//*[@class="fields"]/following-sibling::table/tr/
                      'fn': toc_node_classifier,
                      'place_fn': placement_child_code}
 
-VARIANTS_TOC_FILTER = {'xpath': '//*[@class="variants"]/following-sibling::table[1]/tr/td[1]',
+VARIANTS_TOC_FILTER = {'xpath': '//span[@class="variant"]',
                        'fn': toc_node_classifier,
-                       'place_fn': placement_child_code}
+                       'place_fn': placement_child_span_code}
 
 STATIC_TOC_FILTER = {'xpath': '//*[@id="statics"]/following-sibling::table[1]/tr/td/code[1]',
                       'fn': lambda node: (static_from_text(node.text), "static", )}
